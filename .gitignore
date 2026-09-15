@@ -70,6 +70,10 @@ lightning_logs/
 
 # Pipeline outputs
 outputs/
+output_new/
+
+# Local nested checkout (not part of this repository)
+/biesl-ml/
 
 
 WESAD/

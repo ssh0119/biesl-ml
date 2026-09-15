@@ -1,18 +1,18 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Print and plot confusion matrices for the local-only runs.
 
 Inputs:
-    outputs/local_loro.json           — classical LORO
-    outputs/local_randomsplit.json    — classical 70:15:15 random, 5 seeds
-    outputs/dl_local_loro.json        — 1D-CNN LORO
-    outputs/dl_local_randomsplit.json — 1D-CNN 70:15:15 random, 5 seeds
+    outputs/local_loro.json           ??classical LORO
+    outputs/local_randomsplit.json    ??classical 70:15:15 random, 5 seeds
+    outputs/dl_local_loro.json        ??1D-CNN LORO
+    outputs/dl_local_randomsplit.json ??1D-CNN 70:15:15 random, 5 seeds
 
 Outputs:
-    stdout — markdown tables (one per (protocol × model)), row-normalized %
-    figures/confusion/*.png — one heatmap per matrix
+    stdout ??markdown tables (one per (protocol 횞 model)), row-normalized %
+    figures/confusion/*.png ??one heatmap per matrix
 
 Usage:
-    uv run python scripts/show_confusion_matrices.py > confusion-matrices.md
+    uv run python scripts/plots/show_confusion_matrices.py > confusion-matrices.md
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib                # noqa: E402
 matplotlib.use("Agg")
@@ -124,17 +124,17 @@ def render_loro() -> None:
 
     cls = _load(OUT / "local_loro.json")
     if cls is not None:
-        print(f"\n### Classical — {cls.get('label', 'PDF features only')}")
+        print(f"\n### Classical ??{cls.get('label', 'PDF features only')}")
         for model in ("knn", "randomforest", "xgboost"):
             cm = np.asarray(cls["summary"][model]["confusion_total"], dtype=int)
-            _print_markdown(f"{model.upper()} — LORO", cm, int(cm.sum()))
+            _print_markdown(f"{model.upper()} ??LORO", cm, int(cm.sum()))
             _save_png(f"{model.upper()}  LORO", cm, f"loro__classical_{model}")
 
     dl = _load(OUT / "dl_local_loro.json")
     if dl is not None:
-        print(f"\n### 1D-CNN — {dl.get('label', 'PDF channels')}")
+        print(f"\n### 1D-CNN ??{dl.get('label', 'PDF channels')}")
         cm = np.asarray(dl["summary"]["confusion_total"], dtype=int)
-        _print_markdown("1D-CNN — LORO", cm, int(cm.sum()))
+        _print_markdown("1D-CNN ??LORO", cm, int(cm.sum()))
         _save_png("1D-CNN  LORO", cm, "loro__cnn")
 
 
@@ -145,18 +145,18 @@ def render_random_split() -> None:
 
     cls = _load(OUT / "local_randomsplit.json")
     if cls is not None:
-        print(f"\n### Classical — {cls.get('label', 'PDF features only')}")
+        print(f"\n### Classical ??{cls.get('label', 'PDF features only')}")
         for model in ("knn", "randomforest", "xgboost"):
             cm = _sum_seed_cms_classical(cls["per_seed"], model)
-            _print_markdown(f"{model.upper()} — random 70:15:15", cm, int(cm.sum()))
+            _print_markdown(f"{model.upper()} ??random 70:15:15", cm, int(cm.sum()))
             _save_png(f"{model.upper()}  random 70:15:15", cm,
                       f"randomsplit__classical_{model}")
 
     dl = _load(OUT / "dl_local_randomsplit.json")
     if dl is not None:
-        print(f"\n### 1D-CNN — {dl.get('label', 'PDF channels')}")
+        print(f"\n### 1D-CNN ??{dl.get('label', 'PDF channels')}")
         cm = _sum_seed_cms_dl(dl["per_seed"])
-        _print_markdown("1D-CNN — random 70:15:15", cm, int(cm.sum()))
+        _print_markdown("1D-CNN ??random 70:15:15", cm, int(cm.sum()))
         _save_png("1D-CNN  random 70:15:15", cm, "randomsplit__cnn")
 
 
@@ -168,3 +168,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

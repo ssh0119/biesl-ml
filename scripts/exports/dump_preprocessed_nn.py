@@ -26,13 +26,13 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from src.exclusions import PARTIAL_EXCLUSIONS                          # noqa: E402
 from src.features import preprocess_recording                          # noqa: E402
 from src.io import list_recordings, load_recording, phase_boundaries    # noqa: E402
-from src.pipeline import assign_activity                                # noqa: E402
+from src.pipeline import assign_activity, phase2_label_from_path        # noqa: E402
 from src.preprocess import clean_nn_intervals                           # noqa: E402
 
 OUT_PATH = ROOT / "outputs" / "preprocessed_nn.json"
@@ -49,10 +49,44 @@ def _partial_drop_phase(rec_name: str, phase_label: str) -> bool:
     return False
 
 
+def matches_filter(name: str, targets: list[str]) -> bool:
+    if not targets:
+        return True
+    name_lower = name.lower()
+    for t in targets:
+        t_lower = t.lower()
+        if t_lower in name_lower:
+            return True
+        # Split by underscore/hyphen and check if all parts are in name
+        parts = [p for p in t_lower.replace("-", "_").split("_") if p]
+        if parts and all(p in name_lower for p in parts):
+            return True
+    return False
+
+
 def dump() -> dict:
-    out: dict[str, dict] = {}
-    for path in list_recordings(str(ROOT / "data")):
+    targets = sys.argv[1:]
+    
+    # Load existing preprocessed data if it exists
+    out = {}
+    if OUT_PATH.exists():
+        try:
+            out = json.loads(OUT_PATH.read_text())
+            print(f"Loaded {len(out)} existing recordings from {OUT_PATH}")
+        except Exception as e:
+            print(f"Error reading existing {OUT_PATH}, starting fresh: {e}")
+
+    recordings = list_recordings(str(ROOT / "data"))
+    if targets:
+        filtered_recordings = [r for r in recordings if matches_filter(Path(r).stem, targets)]
+        print(f"Filtered to {len(filtered_recordings)} recordings matching targets: {targets}")
+        recordings = filtered_recordings
+
+    for path in recordings:
         rec = load_recording(path)
+        phase2_label = phase2_label_from_path(path)
+        if phase2_label is None:
+            raise ValueError(f"recording is not inside a supported Phase 2 label folder: {path}")
         try:
             pp = preprocess_recording(rec)
         except Exception as e:                  # noqa: BLE001
@@ -63,7 +97,7 @@ def dump() -> dict:
         for phase_name, (p_start, p_end) in phases.items():
             if phase_name == "recovery":
                 continue
-            activity = assign_activity(phase_name, rec.stressor)
+            activity = assign_activity(phase_name, rec.stressor, phase2_label)
             if _partial_drop_phase(rec.name, activity):
                 continue
             # NN intervals — slice R-peaks to the phase, clean, store ms.
@@ -89,9 +123,10 @@ def dump() -> dict:
         stress_act = next((a for a in per_phase if a != "rest"), None)
         n_stress = len(per_phase.get(stress_act, {}).get("nn_ms", [])) if stress_act else 0
         print(f"  {rec.name:40s}  rest={n_rest:4d} NN  {stress_act or '-'}={n_stress:4d} NN")
+        
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(out))
-    print(f"\nwrote {OUT_PATH}  ({len(out)} recordings)")
+    print(f"\nwrote {OUT_PATH}  ({len(out)} total recordings)")
     return out
 
 

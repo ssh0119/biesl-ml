@@ -25,6 +25,7 @@ from sklearn.model_selection import GridSearchCV, GroupKFold, LeaveOneGroupOut
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.base import BaseEstimator, ClassifierMixin
 from xgboost import XGBClassifier
 
 from .features import preprocess_recording, windows_for_recording
@@ -36,27 +37,30 @@ warnings.filterwarnings("ignore")  # filterwarnings handled per-window
 DATA_DIR = "data"
 OUT_DIR = "outputs"
 
-PHASE_CLASSES = ["rest", "meditation", "plank", "math"]
+PHASE2_FOLDER_LABELS = {
+    "mental1": "mental1",
+    "mental2": "mental2",
+    "physical1": "physical1",
+    "physical2": "physical2",
+}
+PHASE_CLASSES = ["rest", *PHASE2_FOLDER_LABELS.values()]
 
 
-def assign_activity(phase: str, stressor: str) -> str:
-    """Map (phase, stressor) to one of the three target classes, or "" to drop.
+def assign_activity(phase: str, stressor: str, phase2_label: str | None = None) -> str:
+    """Map a protocol phase to its training label.
 
-    `phase` is one of "rest" / "stress" / "recovery" from phase_boundaries();
-    `stressor` is the filename token ("medi" | "pla" | "math").
-
-    Returns:
-        'rest'       — pre-stressor baseline period (typically the first 5 min)
-        'meditation' — `stress` phase of a `medi` recording
-        'plank'      — `stress` phase of a `pla` (plank) recording
-        ''           — recovery period (NOT in our taxonomy any more, callers
-                       MUST filter on this empty string and skip the window)
+    Phase 1 is always ``rest``. Phase 2 uses ``phase2_label`` from the
+    recording's parent folder. The filename stressor remains available as a
+    fallback for legacy callers and protocol-duration parsing. Recovery is
+    excluded by returning an empty label.
     """
     if phase == "rest":
         return "rest"
     if phase == "recovery":
         return ""                   # signal: drop this window
     # phase == "stress"
+    if phase2_label is not None:
+        return phase2_label
     if stressor == "medi":
         return "meditation"
     if stressor == "pla":
@@ -64,6 +68,12 @@ def assign_activity(phase: str, stressor: str) -> str:
     if stressor == "math":
         return "math"
     return f"stress_{stressor}"
+
+
+def phase2_label_from_path(path: str) -> str | None:
+    """Return the Phase 2 class encoded by a recording's parent folder."""
+    folder = os.path.basename(os.path.dirname(os.path.abspath(path))).lower()
+    return PHASE2_FOLDER_LABELS.get(folder)
 
 
 # ----------------------------------------------------------------------------
@@ -78,6 +88,12 @@ def build_feature_table(data_dir: str = DATA_DIR, *, include_temp: bool = False)
     records: list[dict] = []
     for path in list_recordings(data_dir):
         t0 = time.time()
+        phase2_label = phase2_label_from_path(path)
+        if phase2_label is None:
+            raise ValueError(
+                f"recording is not inside a supported Phase 2 label folder: {path}. "
+                f"Expected one of {sorted(PHASE2_FOLDER_LABELS)}"
+            )
         rec = load_recording(path)
         pp = preprocess_recording(rec)
         wins = windows_for_recording(pp, include_temp=include_temp)
@@ -87,7 +103,7 @@ def build_feature_table(data_dir: str = DATA_DIR, *, include_temp: bool = False)
                 "subject": w.subject,
                 "stressor": w.stressor,
                 "phase": w.phase,
-                "activity": assign_activity(w.phase, w.stressor),
+                "activity": assign_activity(w.phase, w.stressor, phase2_label),
                 "t_start": w.t_start,
                 "t_end": w.t_end,
             }
@@ -95,6 +111,54 @@ def build_feature_table(data_dir: str = DATA_DIR, *, include_temp: bool = False)
             records.append(row)
         print(f"  {os.path.basename(path):34s} -> {len(wins):3d} windows ({time.time()-t0:.1f}s)")
     df = pd.DataFrame(records)
+    return df
+
+
+# Features whose absolute values are most confounded by inter-subject
+# baseline differences (diagnosis: these have the largest effect size for
+# math-vs-rest but fail cross-subject because nvt's math HR overlaps mta's
+# rest HR). Normalising against each recording's own rest phase removes
+# this confound.
+DELTA_BASE_FEATURES = ("hr", "hrv_rmssd", "ss", "rr", "resp_amp")
+
+
+def add_delta_features(
+    df: pd.DataFrame,
+    base_features: tuple[str, ...] = DELTA_BASE_FEATURES,
+    rest_label: str = "rest",
+) -> pd.DataFrame:
+    """Add within-recording baseline-normalised (delta) features.
+
+    For each recording, compute the rest-phase mean and std of each base
+    feature. Then for EVERY window (including rest) compute:
+
+        delta_{feat} = (value - rest_mean) / rest_std
+
+    Rest windows will cluster around 0; stress windows will show the
+    subject-relative deviation. This removes inter-subject baseline
+    differences that confuse math ↔ rest classification.
+
+    The original absolute features are kept — the model gets both.
+    """
+    df = df.copy()
+    for feat in base_features:
+        delta_col = f"delta_{feat}"
+        df[delta_col] = np.nan
+
+        for rec_name, grp in df.groupby("rec_name"):
+            rest_mask = grp["activity"] == rest_label
+            rest_vals = grp.loc[rest_mask, feat].dropna()
+            if len(rest_vals) < 3:
+                # Not enough rest data — leave as NaN (imputer handles it)
+                continue
+            rest_mean = float(rest_vals.mean())
+            rest_std = float(rest_vals.std())
+            if rest_std < 1e-9:
+                rest_std = 1.0  # prevent division by zero
+
+            idx = grp.index
+            df.loc[idx, delta_col] = (df.loc[idx, feat] - rest_mean) / rest_std
+
     return df
 
 
@@ -126,6 +190,76 @@ def make_rf_pipeline() -> Pipeline:
     ])
 
 
+class SafeXGBClassifier(BaseEstimator, ClassifierMixin):
+    """Wrapper around XGBClassifier that fits LabelEncoder locally on the
+    current training split, mapping classes to consecutive integers starting from 0.
+    This prevents XGBoost from raising ValueError in cross-validation folds that
+    lack one or more classes.
+    """
+    def __init__(
+        self,
+        n_estimators=None,
+        max_depth=None,
+        learning_rate=None,
+        subsample=None,
+        colsample_bytree=None,
+        random_state=None,
+        n_jobs=None,
+        eval_metric=None,
+        tree_method=None,
+        device=None,
+        class_weight="balanced",
+    ):
+        self.n_estimators = n_estimators
+        self.max_depth = max_depth
+        self.learning_rate = learning_rate
+        self.subsample = subsample
+        self.colsample_bytree = colsample_bytree
+        self.random_state = random_state
+        self.n_jobs = n_jobs
+        self.eval_metric = eval_metric
+        self.tree_method = tree_method
+        self.device = device
+        self.class_weight = class_weight
+        self.clf_ = None
+        self.le_ = None
+        self.classes_ = None
+
+    def fit(self, X, y, **fit_params):
+        self.le_ = LabelEncoder().fit(y)
+        y_encoded = self.le_.transform(y)
+        kwargs = {
+            "n_estimators": self.n_estimators,
+            "max_depth": self.max_depth,
+            "learning_rate": self.learning_rate,
+            "subsample": self.subsample,
+            "colsample_bytree": self.colsample_bytree,
+            "random_state": self.random_state,
+            "n_jobs": self.n_jobs,
+            "eval_metric": self.eval_metric,
+            "tree_method": self.tree_method,
+            "device": self.device,
+        }
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        self.clf_ = XGBClassifier(**kwargs)
+
+        fit_params_use = fit_params.copy()
+        if self.class_weight == "balanced" and "sample_weight" not in fit_params_use:
+            from sklearn.utils.class_weight import compute_sample_weight
+            fit_params_use["sample_weight"] = compute_sample_weight(class_weight="balanced", y=y_encoded)
+
+        self.clf_.fit(X, y_encoded, **fit_params_use)
+        self.classes_ = self.le_.classes_
+        return self
+
+    def predict(self, X):
+        preds = self.clf_.predict(X)
+        return self.le_.inverse_transform(preds)
+
+    def predict_proba(self, X):
+        return self.clf_.predict_proba(X)
+
+
 def make_xgb_pipeline() -> Pipeline:
     """XGBoost handles NaN natively and ignores feature scale.
 
@@ -138,7 +272,7 @@ def make_xgb_pipeline() -> Pipeline:
         random_state=0, n_jobs=-1, eval_metric="mlogloss",
         tree_method="hist", device=("cuda" if use_gpu else "cpu"),
     )
-    return Pipeline([("clf", XGBClassifier(**kwargs))])
+    return Pipeline([("clf", SafeXGBClassifier(**kwargs))])
 
 
 KNN_GRID = {
@@ -166,7 +300,7 @@ XGB_GRID = {
 MODELS = {
     "knn":          (make_knn_pipeline, KNN_GRID, False),
     "randomforest": (make_rf_pipeline,  RF_GRID,  False),
-    "xgboost":      (make_xgb_pipeline, XGB_GRID, True),   # XGB needs int labels
+    "xgboost":      (make_xgb_pipeline, XGB_GRID, False),   # SafeXGBClassifier handles labels internally
 }
 
 
@@ -184,20 +318,20 @@ def _loso_one_model(
     cm_total = np.zeros((len(PHASE_CLASSES), len(PHASE_CLASSES)), dtype=int)
     fold_reports: list[dict] = []
 
-    if needs_int_labels:
-        le = LabelEncoder().fit(PHASE_CLASSES)
-        y_enc = le.transform(y)
-    else:
-        le = None
-        y_enc = y
-
     for fold_idx, (tr_idx, te_idx) in enumerate(logo.split(X, y, groups)):
         train_subject = list(set(groups[tr_idx]))
         test_subject  = list(set(groups[te_idx]))
         print(f"  [{model_name}] fold {fold_idx + 1}: train={train_subject} test={test_subject}", end="")
 
-        X_tr, y_tr, groups_tr = X[tr_idx], y_enc[tr_idx], recs[tr_idx]
-        X_te, y_te = X[te_idx], y_enc[te_idx]
+        X_tr, y_tr_raw, groups_tr = X[tr_idx], y[tr_idx], recs[tr_idx]
+        X_te, y_te_raw = X[te_idx], y[te_idx]
+
+        if needs_int_labels:
+            le_fold = LabelEncoder().fit(y_tr_raw)
+            y_tr = le_fold.transform(y_tr_raw)
+        else:
+            le_fold = None
+            y_tr = y_tr_raw
 
         n_recs_in_train = len(set(groups_tr))
         if n_recs_in_train >= 3:
@@ -215,11 +349,11 @@ def _loso_one_model(
         y_pred = gs.predict(X_te)
 
         # decode back to string labels for the report
-        if le is not None:
-            y_te_lbl  = le.inverse_transform(y_te)
-            y_pred_lbl = le.inverse_transform(y_pred)
+        if le_fold is not None:
+            y_pred_lbl = le_fold.inverse_transform(y_pred)
         else:
-            y_te_lbl, y_pred_lbl = y_te, y_pred
+            y_pred_lbl = y_pred
+        y_te_lbl = y_te_raw
 
         acc = accuracy_score(y_te_lbl, y_pred_lbl)
         f1m = f1_score(y_te_lbl, y_pred_lbl, average="macro", zero_division=0)
@@ -345,7 +479,7 @@ def train_val_test_evaluate(
         train_df, val_df, test_df = stratified_window_split(
             df, val_size=val_size, test_size=test_size, seed=seed,
         )
-        print("\n!! SPLIT MODE: window-stratified random — leaks across the 50%-overlap")
+        print("\n!! SPLIT MODE: window-stratified random - leaks across the 50%-overlap")
         print("   windows in each recording. Scores are optimistic vs. recording-grouped CV.")
     elif mode == "recording_grouped":
         train_df, val_df, test_df = make_train_val_test_split(
@@ -374,13 +508,11 @@ def train_val_test_evaluate(
         print(f"\n>>> Model: {name}")
 
         if needs_int:
-            le = LabelEncoder().fit(PHASE_CLASSES)
+            le = LabelEncoder().fit(y_tv)
             y_tv_use = le.transform(y_tv)
-            y_te_use = le.transform(y_te)
-            y_va_use = le.transform(y_va)
         else:
             le = None
-            y_tv_use, y_te_use, y_va_use = y_tv, y_te, y_va
+            y_tv_use = y_tv
 
         gs = GridSearchCV(
             build_pipe(), grid, cv=ps, scoring="f1_macro",
@@ -515,7 +647,7 @@ def fit_final_models(df: pd.DataFrame, out_dir: str = OUT_DIR) -> dict:
     saved = {}
     for name, (build_pipe, grid, needs_int) in MODELS.items():
         if needs_int:
-            le = LabelEncoder().fit(PHASE_CLASSES)
+            le = LabelEncoder().fit(np.unique(y))
             y_use = le.transform(y)
         else:
             y_use = y

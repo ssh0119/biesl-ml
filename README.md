@@ -2,9 +2,9 @@
 
 Machine-learning experiments on multimodal physiological signals captured from a wearable device.
 
-**Task.** Per-window **4-class** classification — `rest` / `meditation` / `plank` / `math`. The post-stressor `recovery` phase is dropped.
-**Data.** Curated 20-file allowlist (5 subjects: `mta`, `mta2`, `ljh`, `nvt`, `oyj`, `smj`). Stressor coverage: 6 medi + 6 plank + 8 math.
-**Features (8).** `csi, hr, hrv_rmssd, sd2_sd1, sd1_x_sd2, ss, rr, rrv`. SD1 / SD2 are computed internally; the raw axes aren't fed to the model (SD1 ≈ RMSSD/√2, SD2 = 1000/SS — both already covered).
+**Task.** Per-window **5-class** classification — `rest` / `mental1` / `mental2` / `physical1` / `physical2`. Phase 2 labels come from the recording's parent folder; `recovery` is dropped.
+**Data.** 30 recordings organized by the Phase 2 labels in `data/Phase separation.xlsx`: 8 Mental1, 7 Mental2, 5 Physical1, and 10 Physical2.
+**Features (8).** `csi, hr, hrv_rmssd, sd2_sd1, samp_en, ss, rr, rrv`. SD1 / SD2 are computed internally; the raw axes aren't fed to the model (SD1 ≈ RMSSD/√2, SD2 = 1000/SS — both already covered; `samp_en` is Sample Entropy).
 **Windowing.** Anchor-based on a 2-s slide; each feature is computed on its own centered window (HR 10 s; RR/CSI 40 s; RMSSD / Poincaré / RRV 60 s). Asymmetric −10 / +30 s buffer around the 5-min cue.
 **ECG filter.** Wavelet (sym4 DWT + soft-threshold denoise) keeping the 5–45 Hz band — replaces the prior Butterworth 1–150 Hz + mains-notch chain.
 **BR detector.** Sliding-window local-p90 (default).
@@ -36,8 +36,7 @@ done
 cd .. && mv _dl/*/*.txt . && rm -rf _dl
 ```
 
-`data/` is gitignored. It currently holds **31 `*.txt` recordings** across 7 subjects
-(`mta`, `mta2`, `nvt`, `ntv`, `nva`, `oyj`, `smj`) and three stressors. Filenames ending in
+`data/` is gitignored. It currently holds **30 `*.txt` recordings** under the four Phase 2 label folders. Filenames ending in
 `_posiECG` flag recordings whose ECG R-peaks deflect **positive** (the default device is negative);
 `src/io.py` parses this into `Recording.ecg_polarity`.
 
@@ -49,7 +48,7 @@ Each recording is a tab-separated text file with four time-aligned channel pairs
 | ---------- | ---------- | ------------ | -------------------------------------------------- |
 | Microphone | 0, 1       | ~2000 Hz     | `csi` (Shannon-energy envelope → S1/S2 ratio)      |
 | Breathing  | 2, 3       | ~500 Hz      | `rr`, `rrv` (slope-based peak detector)            |
-| ECG        | 4, 5       | ~500 Hz      | `hr`, `hrv_rmssd`, Poincaré `sd2_sd1` / `sd1_x_sd2` / `ss` |
+| ECG        | 4, 5       | ~500 Hz      | `hr`, `hrv_rmssd`, Poincaré `sd2_sd1` / `ss` and `samp_en` |
 | Skin temp  | 6, 7       | ~1 Hz        | **not used** (excluded per features.pdf)           |
 
 Each channel has its own time vector — they are not row-aligned and must be resampled to a common grid before training. The pipeline does this internally.
@@ -73,8 +72,16 @@ biesl-ml/
 │   └── _old_pre_*/         # previous dataset snapshots
 ├── figures/                # tracked plots (confusion matrices, Poincaré, BR detector compare)
 ├── notebooks/              # exploratory analysis
-├── scripts/                # runners (run_split_reports.py, dump_preprocessed_nn.py, plot_poincare.py, …)
+├── scripts/                # role-based entry points and optional tools
+│   ├── data_sources/       # raw-data acquisition
+│   ├── training/           # legacy training entry points
+│   ├── evaluation/         # LORO and transfer evaluation
+│   ├── experiments/        # ablations and comparisons
+│   ├── diagnostics/        # manual data/feature checks
+│   ├── plots/              # visualization-only tools
+│   └── exports/            # CSV/Excel/JSON intermediate exports
 ├── src/                    # pipeline code (loaders, preprocessing, features, models)
+│   └── plan_c/             # canonical 12-feature production workflow
 ├── report/                 # self-contained ML + Poincaré reports with embedded figures
 ├── features.pdf            # original 8-feature spec (superseded — see ml-report.md)
 ├── README.md
@@ -93,19 +100,71 @@ uv sync --group dev        # + gdown (for re-downloading the dataset)
 
 ## End-to-end commands
 
+### Canonical Plan C workflow
+
+The production 12-feature XGBoost path is organized under `src/plan_c/` and
+uses one entry point for feature preparation, LORO evaluation, and final
+training:
+
 ```bash
-# All 4 models (KNN / RF / XGBoost / 1D-CNN), 4-class, LORO + 70:15:15 random split.
+# Build features once, evaluate with LORO, then train on all recordings.
+python -m src.plan_c run-all --output-dir outputs/plan_c
+
+# Individual stages when needed.
+python -m src.plan_c prepare  --output-dir outputs/plan_c
+python -m src.plan_c evaluate --output-dir outputs/plan_c
+python -m src.plan_c train    --output-dir outputs/plan_c
+```
+
+The unified output contains:
+
+```text
+outputs/plan_c/
+├── run_config.json
+├── features.csv
+├── evaluation/
+│   ├── metrics.json
+│   └── confusion_matrix.png
+└── production/
+    ├── xgboost_model.joblib
+    ├── xgboost_model.json
+    ├── feature_names.joblib
+    └── model_metadata.json
+```
+
+Legacy and experimental runners remain in `scripts/`; see
+[`scripts/README.md`](scripts/README.md) for their roles.
+
+### 1D-CNN workflow
+
+The raw-signal CNN is separate from Plan C, so the existing XGBoost workflow
+is unchanged. It uses 40-second, three-channel windows at the original 250 Hz
+sampling rate and the same five folder-derived labels.
+
+```bash
+# Build the raw cache, run 30-fold LORO, and train the final CNN.
+python -m src.cnn run-all
+
+# Run only the LORO evaluation (useful before deciding on an ensemble).
+python -m src.cnn evaluate
+```
+
+See [`cnn.md`](cnn.md) for the Korean implementation notes, split protocol,
+output files, and the leakage constraints for combining CNN and XGBoost.
+
+```bash
+# Classical model comparison using the current five labels and LORO.
 # Default BR detector is neurokit; set BR_PEAK_METHOD=sliding|global to swap.
-BR_PEAK_METHOD=neurokit uv run python scripts/run_split_reports.py
+BR_PEAK_METHOD=neurokit uv run python scripts/evaluation/run_split_reports.py
 
 # BR-detector ablation (runs all 3 detectors back-to-back)
-uv run python scripts/run_detector_compare.py
+uv run python scripts/experiments/run_detector_compare.py
 
 # Dump per-recording NN intervals for Poincaré analysis
-uv run python scripts/dump_preprocessed_nn.py
+uv run python scripts/exports/dump_preprocessed_nn.py
 
 # Render Poincaré scatter PNGs into figures/poincare/
-uv run python scripts/plot_poincare.py
+uv run python scripts/plots/plot_poincare.py
 ```
 
 Outputs:
@@ -119,7 +178,7 @@ Outputs:
 
 ## Where to look first
 
-- [`report/ml-report.md`](report/ml-report.md) — 4-class numbers, per-class F1, confusion matrices.
+- [`report/ml-report.md`](report/ml-report.md) — historical model numbers and confusion matrices.
 - [`report/poincare-report.md`](report/poincare-report.md) — Poincaré per recording × phase, with SD1 / SD2 / SS values.
 - [`src/features.py`](src/features.py) — 9 features + anchor-based per-feature windowing.
 - [`src/preprocess.py`](src/preprocess.py) — filters and peak detectors.

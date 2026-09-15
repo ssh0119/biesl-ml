@@ -1,7 +1,7 @@
-#!/usr/bin/env python
-"""Run scripts/run_split_reports.py for each BR peak detector.
+﻿#!/usr/bin/env python
+"""Run scripts/evaluation/run_split_reports.py for each BR peak detector.
 
-For each detector ∈ {global, sliding, neurokit} and each class config
+For each detector ??{global, sliding, neurokit} and each class config
 {without_math, with_math}, train + evaluate KNN/RF/XGBoost + 1D-CNN under
 LORO and 70:15:15 random split, and save:
 
@@ -21,7 +21,7 @@ import sys
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DETECTORS = ("global", "sliding", "neurokit")
 
 
@@ -30,7 +30,7 @@ def run_for_detector(detector: str) -> None:
     env = {**os.environ, "BR_PEAK_METHOD": detector}
     # The run script writes to outputs/split_reports.json and to
     # figures/{with,without}_math/confusion/. Move both aside after.
-    subprocess.run(["uv", "run", "python", "scripts/run_split_reports.py"],
+    subprocess.run(["uv", "run", "python", "scripts/evaluation/run_split_reports.py"],
                    cwd=str(ROOT), check=True, env=env)
     # Move outputs/split_reports.json -> outputs/split_reports_<detector>.json
     src_json = ROOT / "outputs" / "split_reports.json"
@@ -59,3 +59,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

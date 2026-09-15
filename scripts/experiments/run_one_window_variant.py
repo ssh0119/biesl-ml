@@ -1,18 +1,18 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Run classical + 1D-CNN pipelines for ONE window configuration and write
 all four JSONs into a given out_dir. Honors the WINDOW_S/OVERLAP defined in
 src/features.py at import time, so the caller should edit src/features.py
 *before* invoking this script (subprocess restart picks up the new values).
 
 Usage:
-    uv run python scripts/run_one_window_variant.py outputs/win40_ov20
+    uv run python scripts/experiments/run_one_window_variant.py outputs/win40_ov20
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 
 def main() -> None:
@@ -22,7 +22,7 @@ def main() -> None:
     out_dir = sys.argv[1]
     Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-    # report the captured constants — sanity check for the caller
+    # report the captured constants ??sanity check for the caller
     from src.features import OVERLAP, WINDOW_S
     from src.raw_windows import WINDOW_N
     print(f"[variant] WINDOW_S={WINDOW_S}  OVERLAP={OVERLAP}  "
@@ -51,3 +51,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

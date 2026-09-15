@@ -8,10 +8,10 @@
 #   outputs/win40_ov20/{local_loro,local_randomsplit,dl_local_loro,dl_local_randomsplit}.json
 #   outputs/win30_ov15/{...same four...}.json
 #
-# Usage:  bash scripts/run_window_variants.sh
+# Usage:  bash scripts/experiments/run_window_variants.sh
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 FEATURES_PY="src/features.py"
@@ -30,10 +30,10 @@ restore() {
 trap restore EXIT
 
 set_window "40.0"
-uv run python scripts/run_one_window_variant.py outputs/win40_ov20
+uv run python scripts/experiments/run_one_window_variant.py outputs/win40_ov20
 
 set_window "30.0"
-uv run python scripts/run_one_window_variant.py outputs/win30_ov15
+uv run python scripts/experiments/run_one_window_variant.py outputs/win30_ov15
 
 # trap restores 60.0 on exit
 echo "[driver] all variants done"

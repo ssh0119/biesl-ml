@@ -19,6 +19,7 @@ from typing import Iterable
 PARTIAL_EXCLUSIONS: tuple[tuple[str, str, object], ...] = ()
 
 
+
 def filter_feature_df(df):
     """Apply PARTIAL_EXCLUSIONS to a `build_feature_table()` output."""
     if df is None or len(df) == 0:

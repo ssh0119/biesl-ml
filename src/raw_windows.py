@@ -34,7 +34,7 @@ from .io import (
     phase_boundaries,
     resample_uniform,
 )
-from .pipeline import PHASE_CLASSES, assign_activity
+from .pipeline import PHASE_CLASSES, assign_activity, phase2_label_from_path
 
 TARGET_FS = 250.0
 ACTIVITY_TO_LABEL = {name: i for i, name in enumerate(PHASE_CLASSES)}
@@ -46,7 +46,7 @@ WINDOW_N = int(WINDOW_S * TARGET_FS)
 @dataclass
 class RawWindow:
     signal: np.ndarray       # (n_channels, WINDOW_N) float32
-    label: int               # 0=baseline, 1=meditation, 2=stress
+    label: int               # index into pipeline.PHASE_CLASSES
     activity: str
     source: str              # 'local'
     subject: str
@@ -114,6 +114,9 @@ def windows_from_local_recording(
         )
 
     phases = phase_boundaries(rec)
+    phase2_label = phase2_label_from_path(rec.path)
+    if phase2_label is None:
+        raise ValueError(f"recording is not inside a supported Phase 2 label folder: {rec.path}")
     out: list[RawWindow] = []
     ecg_t0 = float(rec.channels["ecg"][0, 0])
 
@@ -128,7 +131,7 @@ def windows_from_local_recording(
     for phase_name, (p_start, p_end) in phases.items():
         if phase_name == "recovery":
             continue
-        activity = assign_activity(phase_name, rec.stressor)
+        activity = assign_activity(phase_name, rec.stressor, phase2_label)
         if activity not in ACTIVITY_TO_LABEL:
             continue
         anchor_lo = p_start + half_max_classical

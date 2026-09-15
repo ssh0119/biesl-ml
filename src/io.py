@@ -73,7 +73,34 @@ def parse_filename(path: str) -> tuple[str, str, str, float | None, int | None, 
     name = os.path.basename(path)
     m = FNAME_RE.match(name)
     if not m:
-        raise ValueError(f"unparseable filename: {name}")
+        # Fallback parsing for non-standard filenames (e.g. "pre med 1.txt", "af med 1.txt")
+        clean_name = os.path.splitext(name)[0]
+        tokens = re.split(r'[-_\s]+', clean_name)
+        subject = tokens[0] if len(tokens) > 0 else "unknown"
+        stressor = "medi"  # default fallback
+        for t in tokens:
+            t_low = t.lower()
+            if t_low in ("medi", "med"):
+                stressor = "medi"
+            elif t_low == "math":
+                stressor = "math"
+            elif t_low == "pla":
+                stressor = "pla"
+
+        rep = None
+        if len(tokens) > 1:
+            last_token = tokens[-1]
+            if last_token.isdigit():
+                rep = int(last_token)
+            elif len(last_token) > 1 and last_token[:-1].isdigit():
+                # E.g. "1a" -> rep = 1
+                rep = int(last_token[:-1])
+
+        date = "unknown"
+        plank = None
+        polarity = "negative"
+        return subject, date, stressor, plank, rep, polarity
+
     subject = m.group("subject")
     date = f"{int(m.group('month'))}-{int(m.group('day'))}"
     stressor = m.group("stressor")
@@ -91,8 +118,8 @@ def load_recording(path: str) -> Recording:
     Returns 4 channels as 2xN arrays of (time, value), NaNs dropped per channel.
     """
     df = pd.read_csv(path, sep="\t", header=0)
-    if df.shape[1] != 8:
-        raise ValueError(f"{path}: expected 8 columns, got {df.shape[1]}")
+    if df.shape[1] < 8:
+        raise ValueError(f"{path}: expected at least 8 columns, got {df.shape[1]}")
 
     channels: dict[str, np.ndarray] = {}
     for name, (ti, vi) in CHANNEL_INDICES.items():
@@ -119,17 +146,23 @@ def load_recording(path: str) -> Recording:
 
 
 def list_recordings(data_dir: str) -> list[str]:
-    """Return sorted CSV / TXT recording paths in `data_dir` (top level only).
+    """Return sorted CSV / TXT recording paths under `data_dir` recursively.
 
     Recordings dropped here as raw text per the features.pdf workflow are
-    .txt; legacy / pre-cleaned CSVs are .csv. Both are accepted.
+    .txt; legacy / pre-cleaned CSVs are .csv. Both are accepted. Directories
+    whose names start with an underscore are excluded so archived or rejected
+    recordings do not re-enter the training set.
     """
-    return sorted(
-        os.path.join(data_dir, f)
-        for f in os.listdir(data_dir)
-        if f.lower().endswith((".csv", ".txt"))
-        and not f.startswith("_")           # skip data/_old/ markers if any
-    )
+    paths: list[str] = []
+    for root, dirs, files in os.walk(data_dir):
+        dirs[:] = [d for d in dirs if not d.startswith("_")]
+        paths.extend(
+            os.path.join(root, filename)
+            for filename in files
+            if filename.lower().endswith((".csv", ".txt"))
+            and not filename.startswith("_")
+        )
+    return sorted(paths)
 
 
 def phase_boundaries(rec: Recording, rest_s: float = 300.0) -> dict[str, tuple[float, float]]:

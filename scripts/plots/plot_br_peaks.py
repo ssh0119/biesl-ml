@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Plot median-filtered breathing (BR) signal + detected peaks for every recording.
 
 For each recording in data/:
@@ -11,7 +11,7 @@ Saves one PNG per recording under figures/br/ and prints a per-recording
 summary line (breath count, mean breath rate) to stdout.
 
 Usage:
-    uv run python scripts/plot_br_peaks.py
+    uv run python scripts/plots/plot_br_peaks.py
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib                # noqa: E402
 matplotlib.use("Agg")
@@ -122,3 +122,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

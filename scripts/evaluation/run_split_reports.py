@@ -1,19 +1,19 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Train + evaluate the 4-class model and emit confusion-matrix PNGs.
 
-4 classes: rest / meditation / plank / math (full dataset).
+5 classes: rest / mental1 / mental2 / physical1 / physical2.
 Models: KNN / RandomForest / XGBoost / 1D-CNN.
 Protocol: LORO (leave one recording out) only. Random 70:15:15 has been
-dropped — at a 2-s anchor step, windows 2 s apart are near-duplicates so
+dropped ??at a 2-s anchor step, windows 2 s apart are near-duplicates so
 the random split leaks heavily and the score collapses to ~1.0 for every
 model. LORO is the only honest cross-subject estimate.
 
 Writes:
-  outputs/split_reports.json                       — all numbers
-  figures/with_math/confusion/loro__*.png          — row-normalized % heatmaps
+  outputs/split_reports.json                       ??all numbers
+  figures/with_math/confusion/loro__*.png          ??row-normalized % heatmaps
 
 Usage:
-    uv run python scripts/run_split_reports.py
+    uv run python scripts/evaluation/run_split_reports.py
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib                       # noqa: E402
 matplotlib.use("Agg")
@@ -43,7 +43,7 @@ from src.exclusions import filter_feature_df, filter_raw_windows   # noqa: E402
 
 SEEDS = (0, 1, 2, 3, 4)
 CONFIGS = {
-    "with_math":    ["rest", "meditation", "plank", "math"],
+    "phase2_folders": ["rest", "mental1", "mental2", "physical1", "physical2"],
 }
 
 
@@ -235,9 +235,9 @@ def main():
             "classical": {
                 "loro": classical_loro(df, classes, models),
             },
-            "cnn": {
-                "loro": cnn_loro(X, y, recs, classes, le),
-            },
+            # "cnn": {
+            #     "loro": cnn_loro(X, y, recs, classes, le),
+            # },
         }
         results[cfg] = res
 
@@ -246,14 +246,14 @@ def main():
         for m in models:
             _save_cm_png(res["classical"]["loro"][m]["confusion_total"], classes,
                          f"{m.upper()}  LORO  ({cfg})", figdir / f"loro__{m}.png")
-        _save_cm_png(res["cnn"]["loro"]["confusion_total"], classes,
-                     f"1D-CNN  LORO  ({cfg})", figdir / "loro__cnn.png")
+        # _save_cm_png(res["cnn"]["loro"]["confusion_total"], classes,
+        #              f"1D-CNN  LORO  ({cfg})", figdir / "loro__cnn.png")
 
         # console summary
         print(f"\n  {'model':<14s}{'LORO f1':>9s}")
         for m in models:
             print(f"  {m:<14s}{res['classical']['loro'][m]['mean_macro_f1']:>9.3f}")
-        print(f"  {'1D-CNN':<14s}{res['cnn']['loro']['mean_macro_f1']:>9.3f}")
+        # print(f"  {'1D-CNN':<14s}{res['cnn']['loro']['mean_macro_f1']:>9.3f}")
 
     Path("outputs").mkdir(exist_ok=True)
     with open("outputs/split_reports.json", "w") as fh:
@@ -263,3 +263,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

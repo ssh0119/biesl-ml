@@ -443,14 +443,30 @@ def filter_mic_pcg(x: np.ndarray, fs: float) -> np.ndarray:
     return signal.sosfiltfilt(sos, x)
 
 
-def shannon_energy(x: np.ndarray, smooth_ms: float = 50.0, fs: float = 2000.0) -> np.ndarray:
+def shannon_energy(
+    x: np.ndarray, smooth_ms: float = 50.0, fs: float = 2000.0,
+    *,
+    clip_mad: float = 15.0,
+) -> np.ndarray:
     """Shannon-energy envelope: SE = -x^2 log(x^2), with smoothing.
 
     PDF wrote "S = C log(C)"; the standard PCG envelope (Liang et al. 1997)
     that yields the clear S1/S2 peaks the figure shows is the Shannon energy
     of the normalized signal, -x^2 log(x^2). We follow the standard.
+
+    `clip_mad`: if > 0, clips the signal to ±clip_mad * robust_sigma before
+    normalization. This prevents motion artifacts or noise spikes from flattening
+    the envelope of normal heartbeats.
     """
     x = x.astype(np.float64, copy=False)
+    if clip_mad > 0:
+        med = float(np.median(x))
+        mad = float(np.median(np.abs(x - med)))
+        sigma_robust = 1.4826 * mad
+        if sigma_robust > 1e-12:
+            limit = clip_mad * sigma_robust
+            x = np.clip(x, med - limit, med + limit)
+
     m = float(np.max(np.abs(x)))
     if m < 1e-12:
         return np.zeros_like(x)
@@ -476,36 +492,197 @@ def detect_pcg_peaks(se: np.ndarray, fs: float) -> np.ndarray:
     return peaks
 
 
+def classify_s1_s2_indices(
+    se: np.ndarray, se_fs: float, pcg_peaks: np.ndarray,
+    rpeaks_se_idx: np.ndarray,
+    *,
+    mic_f: np.ndarray | None = None,
+    min_amp: float = 0.0,
+    envelope_frac: float = 0.20,
+    search_win_s: float = 0.80,
+    min_dist_s: float = 0.15,
+    s1_window_s: tuple[float, float] = (0.0, 0.20),
+    s2_window_s: tuple[float, float] = (0.20, 0.50),
+) -> tuple[np.ndarray, np.ndarray]:
+    """For each R-peak, search in `search_win_s` (0.8s) window after the R-peak.
+
+    Rules:
+    1. Amplitude threshold: 20% of outer envelope (or min_amp if explicitly given).
+    2. Minimum S1-S2 distance: S1 and S2 must be at least `min_dist_s` (0.15s) apart.
+
+    Returns (s1_indices, s2_indices) in chronological order.
+    """
+    del s1_window_s, s2_window_s  # API compatibility
+    if len(pcg_peaks) == 0 or len(rpeaks_se_idx) == 0:
+        return np.array([], dtype=int), np.array([], dtype=int)
+
+    win_idx = int(round(search_win_s * se_fs))
+    half_win = int(round(0.05 * se_fs))
+    min_dist_samples = int(round(min_dist_s * se_fs))
+
+    if mic_f is not None:
+        if min_amp > 0:
+            threshold = min_amp
+        elif envelope_frac > 0:
+            from scipy.signal import hilbert
+            outer_env = np.abs(hilbert(mic_f))
+            threshold = envelope_frac * float(np.percentile(outer_env, 98))
+        else:
+            threshold = 0.0
+    else:
+        threshold = 0.0
+
+    s1_idxs: list[int] = []
+    s2_idxs: list[int] = []
+
+    for r in rpeaks_se_idx:
+        in_range = pcg_peaks[(pcg_peaks >= r) & (pcg_peaks <= r + win_idx)]
+
+        if mic_f is not None and threshold > 0:
+            valid_peaks = []
+            for p in in_range:
+                lo = max(0, p - half_win)
+                hi = min(len(mic_f), p + half_win + 1)
+                amp = float(np.max(np.abs(mic_f[lo:hi]))) if len(mic_f[lo:hi]) > 0 else 0.0
+                if amp >= threshold:
+                    valid_peaks.append(p)
+            peaks_to_use = valid_peaks
+        else:
+            peaks_to_use = in_range.tolist()
+
+        if len(peaks_to_use) >= 2:
+            p1 = int(peaks_to_use[0])
+            for p2_cand in peaks_to_use[1:]:
+                if (p2_cand - p1) >= min_dist_samples:
+                    s1_idxs.append(p1)
+                    s2_idxs.append(int(p2_cand))
+                    break
+
+    return np.asarray(s1_idxs, dtype=int), np.asarray(s2_idxs, dtype=int)
+
+
 def classify_s1_s2(
     se: np.ndarray, se_fs: float, pcg_peaks: np.ndarray,
     rpeaks_se_idx: np.ndarray,
     *,
+    mic_f: np.ndarray | None = None,
+    min_amp: float = 0.0,
+    envelope_frac: float = 0.20,
+    search_win_s: float = 0.80,
+    min_dist_s: float = 0.15,
     s1_window_s: tuple[float, float] = (0.0, 0.20),
     s2_window_s: tuple[float, float] = (0.20, 0.50),
 ) -> tuple[np.ndarray, np.ndarray]:
-    """For each R-peak, pick the PCG peak closest to expected S1 / S2 timing.
+    """For each R-peak, search 0.8s window after R peak. First peak is S1, second peak (>= 0.15s) is S2.
 
-    Returns (s1_amplitudes, s2_amplitudes) in Shannon-energy units, in
-    chronological order. R-peaks without a matching S1 or S2 within the
-    timing windows are skipped.
+    Returns (s1_amplitudes, s2_amplitudes) in Shannon-energy units.
     """
-    if len(pcg_peaks) == 0 or len(rpeaks_se_idx) == 0:
+    s1_idxs, s2_idxs = classify_s1_s2_indices(
+        se, se_fs, pcg_peaks, rpeaks_se_idx,
+        mic_f=mic_f, min_amp=min_amp, envelope_frac=envelope_frac,
+        search_win_s=search_win_s, min_dist_s=min_dist_s,
+        s1_window_s=s1_window_s, s2_window_s=s2_window_s,
+    )
+    if len(s1_idxs) == 0:
         return np.array([], dtype=float), np.array([], dtype=float)
+    return se[s1_idxs], se[s2_idxs]
 
-    s1_lo, s1_hi = int(round(s1_window_s[0] * se_fs)), int(round(s1_window_s[1] * se_fs))
-    s2_lo, s2_hi = int(round(s2_window_s[0] * se_fs)), int(round(s2_window_s[1] * se_fs))
 
-    s1_amps: list[float] = []
-    s2_amps: list[float] = []
-    for r in rpeaks_se_idx:
-        s1_band = pcg_peaks[(pcg_peaks > r + s1_lo) & (pcg_peaks <= r + s1_hi)]
-        s2_band = pcg_peaks[(pcg_peaks > r + s2_lo) & (pcg_peaks <= r + s2_hi)]
-        s1_idx = s1_band[np.argmax(se[s1_band])] if len(s1_band) else None
-        s2_idx = s2_band[np.argmax(se[s2_band])] if len(s2_band) else None
-        if s1_idx is not None and s2_idx is not None:
-            s1_amps.append(float(se[s1_idx]))
-            s2_amps.append(float(se[s2_idx]))
-    return np.asarray(s1_amps, dtype=float), np.asarray(s2_amps, dtype=float)
+def calculate_cardiac_snr(
+    signal_data: np.ndarray,
+    fs: float,
+    s1_idxs: np.ndarray,
+    s2_idxs: np.ndarray,
+    *,
+    s1_win_s: float = 0.10,
+    s2_win_s: float = 0.10,
+    method: str = "rms",
+) -> float:
+    """Calculate Signal-to-Noise Ratio (SNR in dB) of cardiac sound (CPS/PCG).
+
+    Parameters
+    ----------
+    signal_data : np.ndarray
+        Filtered cardiac sound (CPS) signal array.
+    fs : float
+        Sampling rate of the signal (Hz).
+    s1_idxs : np.ndarray
+        Sample indices of detected S1 peaks.
+    s2_idxs : np.ndarray
+        Sample indices of detected S2 peaks.
+    s1_win_s : float
+        Window length (seconds) centered on each S1 peak (default 0.10s -> ±50ms).
+    s2_win_s : float
+        Window length (seconds) centered on each S2 peak (default 0.10s -> ±50ms).
+    method : str
+        - "rms" (default): Standard RMS power SNR = 10 log10( mean(x_sig^2) / mean(x_noise^2) )
+        - "voltage_squared_peak": Power = (mean(V_peaks))^2 / (mean(|V_noise|))^2
+        - "voltage_squared_window": Power = (mean(|V_sig_window|))^2 / (mean(|V_noise|))^2
+
+    Returns
+    -------
+    float
+        SNR in dB. Returns NaN if signal or noise regions are empty or zero-power.
+    """
+    n = len(signal_data)
+    if n == 0 or (len(s1_idxs) == 0 and len(s2_idxs) == 0):
+        return float("nan")
+
+    signal_mask = np.zeros(n, dtype=bool)
+
+    half_s1 = int(round((s1_win_s / 2.0) * fs))
+    half_s2 = int(round((s2_win_s / 2.0) * fs))
+
+    s1_amps = []
+    s2_amps = []
+
+    for idx in s1_idxs:
+        lo = max(0, idx - half_s1)
+        hi = min(n, idx + half_s1 + 1)
+        signal_mask[lo:hi] = True
+        if len(signal_data[lo:hi]) > 0:
+            s1_amps.append(np.max(np.abs(signal_data[lo:hi])))
+
+    for idx in s2_idxs:
+        lo = max(0, idx - half_s2)
+        hi = min(n, idx + half_s2 + 1)
+        signal_mask[lo:hi] = True
+        if len(signal_data[lo:hi]) > 0:
+            s2_amps.append(np.max(np.abs(signal_data[lo:hi])))
+
+    n_sig = int(signal_mask.sum())
+    n_noise = n - n_sig
+
+    if n_sig == 0 or n_noise == 0:
+        return float("nan")
+
+    sig_samples = signal_data[signal_mask]
+    noise_samples = signal_data[~signal_mask]
+
+    v_noise_avg = float(np.mean(np.abs(noise_samples)))
+    if v_noise_avg <= 0:
+        return float("nan")
+
+    if method in ("voltage_squared_peak", "voltage_peak"):
+        all_peaks = s1_amps + s2_amps
+        if not all_peaks:
+            return float("nan")
+        v_sig_avg = float(np.mean(all_peaks))
+        p_sig = v_sig_avg ** 2
+        p_noise = v_noise_avg ** 2
+    elif method in ("voltage_squared_window", "voltage_window"):
+        v_sig_avg = float(np.mean(np.abs(sig_samples)))
+        p_sig = v_sig_avg ** 2
+        p_noise = v_noise_avg ** 2
+    else:  # "rms"
+        p_sig = float(np.mean(sig_samples ** 2))
+        p_noise = float(np.mean(noise_samples ** 2))
+
+    if p_sig <= 0 or p_noise <= 0:
+        return float("nan")
+
+    snr_db = 10.0 * np.log10(p_sig / p_noise)
+    return float(snr_db)
 
 
 # ---- back-compat shims (kept so old imports don't break callers we missed) -

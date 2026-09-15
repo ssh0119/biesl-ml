@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """Compare three BR peak detectors on every recording, split into phases.
 
 For each recording in data/:
@@ -20,7 +20,7 @@ Outputs:
   outputs/br_detector_compare.json       per-recording, per-phase counts/rates
 
 Usage:
-    uv run python scripts/compare_br_detectors.py
+    uv run python scripts/diagnostics/compare_br_detectors.py
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import matplotlib                        # noqa: E402
 matplotlib.use("Agg")
@@ -93,7 +93,7 @@ def _per_phase_stats(peaks_idx: np.ndarray, fs: float, phases: dict, t0: float) 
 def _plot_compare(rec_name: str, t: np.ndarray, filt: np.ndarray,
                   results: dict, phases: dict, out_path: Path,
                   ecg_polarity: str, stressor: str) -> None:
-    """Per-recording figure: 3 rows (detectors) × 3 cols (rest / stress /
+    """Per-recording figure: 3 rows (detectors) 횞 3 cols (rest / stress /
     recovery). Each subplot auto-scales its own y-axis so low-amplitude rest
     breaths aren't crushed by the high-amplitude stress phase.
     """
@@ -129,7 +129,7 @@ def _plot_compare(rec_name: str, t: np.ndarray, filt: np.ndarray,
 
             # Robust y-limits per panel: clip out the single huge boundary
             # spikes (motion artefacts at 300 s / end-of-stress) that would
-            # otherwise force the y-range to ±5e6 and crush the breathing
+            # otherwise force the y-range to 짹5e6 and crush the breathing
             # waves. Use 1st-99th percentile with a small padding.
             if ss.size:
                 lo, hi = np.percentile(ss, [1.0, 99.0])
@@ -140,7 +140,7 @@ def _plot_compare(rec_name: str, t: np.ndarray, filt: np.ndarray,
             rate = per[ph]["rate_bpm"]
             n = per[ph]["n_peaks"]
             rate_s = f"{rate:.1f}/min" if rate == rate else "n/a"
-            ax.set_title(f"{method} · {ph}   n={n}   RR={rate_s}", fontsize=8)
+            ax.set_title(f"{method} 쨌 {ph}   n={n}   RR={rate_s}", fontsize=8)
             ax.grid(alpha=0.3, lw=0.4)
             if r == n_rows - 1:
                 ax.set_xlabel("time (s)", fontsize=8)
@@ -210,3 +210,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
