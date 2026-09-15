@@ -1,0 +1,49 @@
+{
+  "test_recording": "mta_6_4_pla_2'10",
+  "validation_recordings": [
+    "smj_6_6_math_19",
+    "mta_6_3_math_14",
+    "mta_5_19_pla_2'20(1)",
+    "mta_6_9_pla_2"
+  ],
+  "n_train": 5109,
+  "n_validation": 794,
+  "n_test": 156,
+  "accuracy": 0.8205128205128205,
+  "macro_f1_present_classes": 0.6666666666666666,
+  "best_epoch": 1,
+  "best_val_macro_f1": 0.6290998217468806,
+  "stopped_at_epoch": 6,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.7452618321646307,
+      "val_macro_f1": 0.6290998217468806
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.26670874803120853,
+      "val_macro_f1": 0.4422914826498423
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.12303126793165897,
+      "val_macro_f1": 0.4426159265436603
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.0908535017613172,
+      "val_macro_f1": 0.4513031293148987
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.05910156319221566,
+      "val_macro_f1": 0.43603107924855006
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.07514578966326525,
+      "val_macro_f1": 0.4372267434018255
+    }
+  ]
+}

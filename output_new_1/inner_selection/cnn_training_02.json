@@ -1,0 +1,89 @@
+{
+  "test_recording": "ljh_8_21_pla_2'20",
+  "validation_recordings": [
+    "mta_6_3_math_10(1)",
+    "nvt_5_26_math_7_10",
+    "mta_5_29_pla_4",
+    "ljh_8_21_pla_2'40"
+  ],
+  "n_train": 5034,
+  "n_validation": 864,
+  "n_test": 161,
+  "accuracy": 1.0,
+  "macro_f1_present_classes": 1.0,
+  "best_epoch": 9,
+  "best_val_macro_f1": 0.9484337063298163,
+  "stopped_at_epoch": 14,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8497497744275124,
+      "val_macro_f1": 0.5380242614752391
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.39496497208985915,
+      "val_macro_f1": 0.6907103024737145
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.2513535694664298,
+      "val_macro_f1": 0.6049698550964087
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.19805917363461398,
+      "val_macro_f1": 0.7102909155796036
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.11507118398299235,
+      "val_macro_f1": 0.6728994959603602
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.13231344911187332,
+      "val_macro_f1": 0.6607569505356303
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.06277941012541169,
+      "val_macro_f1": 0.6557580161727126
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.06241273348370288,
+      "val_macro_f1": 0.9423337385354443
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.06534539627293875,
+      "val_macro_f1": 0.9484337063298163
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.03566514277023352,
+      "val_macro_f1": 0.8291672942833026
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.049161897634404324,
+      "val_macro_f1": 0.7514941111606116
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.045660481467046786,
+      "val_macro_f1": 0.7184148093440681
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.02359457515560484,
+      "val_macro_f1": 0.9391188240269812
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.019016428245342512,
+      "val_macro_f1": 0.9333981962604716
+    }
+  ]
+}

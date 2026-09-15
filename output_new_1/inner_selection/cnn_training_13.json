@@ -1,0 +1,54 @@
+{
+  "test_recording": "mta_6_3_math_8",
+  "validation_recordings": [
+    "smj_6_6_math_19",
+    "oyj_6_6_math_11",
+    "oyj_5_22_pla_1'50",
+    "ljh_8_21_pla_2'40"
+  ],
+  "n_train": 5019,
+  "n_validation": 799,
+  "n_test": 241,
+  "accuracy": 0.13278008298755187,
+  "macro_f1_present_classes": 0.20915032679738563,
+  "best_epoch": 2,
+  "best_val_macro_f1": 0.7460542863330445,
+  "stopped_at_epoch": 7,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.798357520214612,
+      "val_macro_f1": 0.5497029530347608
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.37315267230628807,
+      "val_macro_f1": 0.7460542863330445
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.27798070487070664,
+      "val_macro_f1": 0.6886604532447343
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.15329958947828554,
+      "val_macro_f1": 0.5781594816948765
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.11886378401872955,
+      "val_macro_f1": 0.6688582853725117
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.10446774938781557,
+      "val_macro_f1": 0.6760223749985701
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.08137314375634687,
+      "val_macro_f1": 0.5940502386952691
+    }
+  ]
+}

@@ -1,5 +1,11 @@
 # biesl-ml
 
+## Latest: 29-training-recording CNN / XGBoost comparison
+
+The completed 30-fold LORO run refits both models on all 29 non-test recordings after inner validation. Equal probability averaging achieved **81.73% accuracy / 0.6771 macro F1**; CNN achieved 80.66% / 0.6554 and Plan C XGBoost 78.97% / 0.6316.
+
+See [the complete results and confusion matrices](output_new_1/README.md). The folder includes predictions, per-fold model weights, split manifests, and validation selection records. Run with `python -m scripts.evaluation.run_loro_refit` after preparing the raw data and CUDA Python environment.
+
 Machine-learning experiments on multimodal physiological signals captured from a wearable device.
 
 **Task.** Per-window **5-class** classification — `rest` / `mental1` / `mental2` / `physical1` / `physical2`. Phase 2 labels come from the recording's parent folder; `recovery` is dropped.

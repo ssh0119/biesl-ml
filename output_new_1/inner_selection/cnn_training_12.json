@@ -1,0 +1,99 @@
+{
+  "test_recording": "mta_6_3_math_14",
+  "validation_recordings": [
+    "nvt_5_26_math_6_8",
+    "mta_5_26_math_8_12",
+    "mta_5_29_pla_4",
+    "ljh_8_21_pla_2'20"
+  ],
+  "n_train": 4964,
+  "n_validation": 854,
+  "n_test": 241,
+  "accuracy": 0.5020746887966805,
+  "macro_f1_present_classes": 0.5,
+  "best_epoch": 11,
+  "best_val_macro_f1": 0.590923063547542,
+  "stopped_at_epoch": 16,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.7882230648295135,
+      "val_macro_f1": 0.5016371658146045
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.2609924325519853,
+      "val_macro_f1": 0.3106822016844577
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.13012761562030034,
+      "val_macro_f1": 0.5340773938177683
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.11938247789525991,
+      "val_macro_f1": 0.5730892131888441
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.0526673050325643,
+      "val_macro_f1": 0.5555513640843611
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.05979608858415465,
+      "val_macro_f1": 0.5493628604692067
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.05337430579223093,
+      "val_macro_f1": 0.5721730303446713
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.04282188541679902,
+      "val_macro_f1": 0.5694840341802575
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.05440162627291351,
+      "val_macro_f1": 0.580097490672679
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.05635285250749514,
+      "val_macro_f1": 0.5586421925398594
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.02863896343495703,
+      "val_macro_f1": 0.590923063547542
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.015849650583449844,
+      "val_macro_f1": 0.5821658996085853
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.016602123774194868,
+      "val_macro_f1": 0.5814898437902769
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.015891848981348943,
+      "val_macro_f1": 0.5708438957060379
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.009906807892519071,
+      "val_macro_f1": 0.5679397389157105
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.01073600473469626,
+      "val_macro_f1": 0.5427332283351399
+    }
+  ]
+}

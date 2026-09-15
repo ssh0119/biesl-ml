@@ -1,0 +1,89 @@
+{
+  "test_recording": "ljh_6_5_pla_2(1)",
+  "validation_recordings": [
+    "mta_6_3_math_10",
+    "mta_6_3_math_14",
+    "mta_5_29_pla_2'35",
+    "ljh_8_21_pla_2'20"
+  ],
+  "n_train": 5097,
+  "n_validation": 811,
+  "n_test": 151,
+  "accuracy": 1.0,
+  "macro_f1_present_classes": 1.0,
+  "best_epoch": 9,
+  "best_val_macro_f1": 0.7333333333333333,
+  "stopped_at_epoch": 14,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8338394198601027,
+      "val_macro_f1": 0.657084571689851
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.280134426824177,
+      "val_macro_f1": 0.6950917649547786
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.16406922801606955,
+      "val_macro_f1": 0.7270812033336431
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.11228566034263036,
+      "val_macro_f1": 0.7189675306371728
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.11110450437905299,
+      "val_macro_f1": 0.7197728282448559
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06455968583778515,
+      "val_macro_f1": 0.7242982299302699
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.04659870477973953,
+      "val_macro_f1": 0.7327571636869892
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.03899149462821506,
+      "val_macro_f1": 0.6253456480134065
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.045860336722254466,
+      "val_macro_f1": 0.7333333333333333
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.04008485321379425,
+      "val_macro_f1": 0.7191559019251984
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.02040291211827464,
+      "val_macro_f1": 0.7295140333841956
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.013687095434108173,
+      "val_macro_f1": 0.7316096433006466
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.017518171221997215,
+      "val_macro_f1": 0.725363181709931
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.014640999897256163,
+      "val_macro_f1": 0.7333333333333333
+    }
+  ]
+}

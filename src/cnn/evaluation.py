@@ -9,6 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
 from .config import CLASSES, MAX_EPOCHS, PATIENCE
@@ -91,6 +92,14 @@ def evaluate_loro(
             n_classes=len(CLASSES), max_epochs=max_epochs, patience=patience,
         )
         probability = predict_probabilities(model, X[test_mask])
+        fold_dir = output_dir / "folds" / f"{all_recordings.index(test_recording):02d}"
+        fold_dir.mkdir(parents=True, exist_ok=True)
+        torch.save(model.state_dict(), fold_dir / "model.pt")
+        np.savez(fold_dir / "probabilities.npz",
+                 test_indices=np.flatnonzero(test_mask),
+                 validation_indices=np.flatnonzero(val_mask),
+                 test_probability=probability,
+                 validation_probability=predict_probabilities(model, X[val_mask]))
         prediction = probability.argmax(axis=1)
         true = y[test_mask]
         present = sorted(set(true.tolist()))
@@ -105,6 +114,7 @@ def evaluate_loro(
             **training,
         }
         folds.append(fold_result)
+        (fold_dir / "training.json").write_text(json.dumps(fold_result, indent=2), encoding="utf-8")
         print(f"  accuracy={fold_result['accuracy']:.4f} f1={fold_result['macro_f1_present_classes']:.4f} best_epoch={training['best_epoch']}")
 
         frame = pd.DataFrame({

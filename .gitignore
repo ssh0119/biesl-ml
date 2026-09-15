@@ -72,6 +72,12 @@ lightning_logs/
 outputs/
 output_new/
 
+# Published 29-recording LORO results and compact fold checkpoints
+!output_new_1/features.csv
+!output_new_1/predictions.csv
+!output_new_1/folds/*/cnn_model.pt
+output_new_1/raw_windows_250hz.npz
+
 # Local nested checkout (not part of this repository)
 /biesl-ml/
 

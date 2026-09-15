@@ -1,0 +1,44 @@
+{
+  "protocol": "29 train / 1 test refit",
+  "cache_sha256": "afa2a5ebe3a6df0e03e54fae79546f760ee515777e47312b97675b0ddc866f9d",
+  "features_sha256": "31abe2f1e3624f9cbcbe0302956cb1a9ca421382d2aa42f9b128833b4ac986fc",
+  "inner_selection_sha256": "42b94d357c8dc6f4dd07bd0d135c9d752bb78c71000259db5356ddec6b6c8d66",
+  "torch": "2.12.0+cu130",
+  "device": "cuda",
+  "scheduler_epochs": 24,
+  "xgb_params": {
+    "n_estimators": 400,
+    "max_depth": 4,
+    "learning_rate": 0.05,
+    "subsample": 0.9,
+    "colsample_bytree": 0.9,
+    "random_state": 0,
+    "n_jobs": -1,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "device": "cpu",
+    "class_weight": "balanced"
+  },
+  "classes": [
+    "rest",
+    "mental1",
+    "mental2",
+    "physical1",
+    "physical2"
+  ],
+  "features": [
+    "hr",
+    "hrv_rmssd",
+    "mic_rms",
+    "resp_amp",
+    "rr",
+    "rrv",
+    "ss",
+    "delta_hr",
+    "delta_hrv_rmssd",
+    "delta_ss",
+    "delta_rr",
+    "delta_resp_amp"
+  ],
+  "signature": "7a1ee4f8166a00f8dda03bf6af67ff019e2b416d47c8faacc83911804bb0ab22"
+}

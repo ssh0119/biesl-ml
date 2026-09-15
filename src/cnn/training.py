@@ -125,6 +125,7 @@ def train_with_validation(
         val_pred = val_prob.argmax(axis=1)
         val_f1 = float(f1_score(y_val, val_pred, labels=range(n_classes), average="macro", zero_division=0))
         history.append({"epoch": epoch, "train_loss": total_loss / total_n, "val_macro_f1": val_f1})
+        print(f"    epoch={epoch:02d} loss={total_loss / total_n:.4f} val_f1={val_f1:.4f}", flush=True)
         if val_f1 > best_score + 1e-4:
             best_score = val_f1
             best_epoch = epoch
@@ -152,14 +153,15 @@ def train_fixed_epochs(
     n_classes: int,
     epochs: int,
     batch_size: int = BATCH_SIZE,
+    scheduler_epochs: int | None = None,
 ) -> Phase2CNN1D:
     set_seed()
     model = Phase2CNN1D(in_channels=X.shape[1], n_classes=n_classes).to(DEVICE)
     criterion = nn.CrossEntropyLoss(weight=_class_weights(y, n_classes))
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=scheduler_epochs or epochs)
     loader = _loader(X, y, training=True, batch_size=batch_size)
-    for _ in range(epochs):
+    for epoch in range(1, epochs + 1):
         model.train()
         for xb, yb in loader:
             xb = xb.to(DEVICE, non_blocking=True)
@@ -169,4 +171,5 @@ def train_fixed_epochs(
             loss.backward()
             optimizer.step()
         scheduler.step()
+        print(f"    refit epoch={epoch:02d}/{epochs}", flush=True)
     return model

@@ -1,0 +1,49 @@
+{
+  "test_recording": "mta_5_29_pla_4",
+  "validation_recordings": [
+    "mta_6_3_math_10",
+    "nvt_5_26_math_7_10",
+    "mta_5_29_pla_2'35",
+    "smj_5_22_pla_2"
+  ],
+  "n_train": 5047,
+  "n_validation": 801,
+  "n_test": 211,
+  "accuracy": 0.8293838862559242,
+  "macro_f1_present_classes": 0.875,
+  "best_epoch": 1,
+  "best_val_macro_f1": 0.8173208569248585,
+  "stopped_at_epoch": 6,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8455740470377932,
+      "val_macro_f1": 0.8173208569248585
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.3458899302134626,
+      "val_macro_f1": 0.6358182596180029
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.21111701941145325,
+      "val_macro_f1": 0.4111603360205292
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.12883545114205383,
+      "val_macro_f1": 0.4009976839893971
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.12244959381595918,
+      "val_macro_f1": 0.29774598178089373
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.06851727358091933,
+      "val_macro_f1": 0.47484322275048535
+    }
+  ]
+}
