@@ -77,6 +77,8 @@ output_new/
 !output_new_1/predictions.csv
 !output_new_1/folds/*/cnn_model.pt
 output_new_1/raw_windows_250hz.npz
+!output_new_2/predictions.csv
+output_new_2_initial_attempt/
 
 # Local nested checkout (not part of this repository)
 /biesl-ml/

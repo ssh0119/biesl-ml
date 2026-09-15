@@ -1,6 +1,12 @@
 # biesl-ml
 
-## Latest: 29-training-recording CNN / XGBoost comparison
+## Latest: CNN intermediate features + XGBoost
+
+Combining the 12 Plan C features with 256 CNN pooling features achieved **85.59% accuracy / 0.7512 macro F1** in 30-fold LORO with 29 training recordings and one test recording. Three fixed representation variants were evaluated; this is an exploratory comparison on the same dataset.
+
+See [the full results and confusion matrices](output_new_2/README.md), [the code changes and validation report](output_new_2/CHANGE_REPORT.md), and [the new experiment runner](scripts/evaluation/run_cnn_embeddings.py). The results folder contains all 90 trained XGBoost models, feature names/importances, fold manifests, and per-window predictions. The frozen CNN checkpoints are in `output_new_1/folds/`.
+
+## Previous: 29-training-recording CNN / XGBoost comparison
 
 The completed 30-fold LORO run refits both models on all 29 non-test recordings after inner validation. Equal probability averaging achieved **81.73% accuracy / 0.6771 macro F1**; CNN achieved 80.66% / 0.6554 and Plan C XGBoost 78.97% / 0.6316.
 
