@@ -1,6 +1,28 @@
 # biesl-ml
 
-## Latest: CNN intermediate features + XGBoost
+## Latest: data_new — 44-fold evaluation
+
+The new dataset contains **44 recordings / 9,107 windows**. The Phase separation spreadsheet and all four class folders were checked before training. Each outer fold tests one recording and fits the final models on the other **43 recordings**, including the four recordings used for inner validation. All CNNs, epoch selections, and fusion weights were trained again on this dataset.
+
+| Method | Accuracy | Macro F1 |
+|---|---:|---:|
+| CNN | 80.58% | 0.6978 |
+| Plan C XGBoost | 76.82% | 0.6190 |
+| Equal probability average | 83.46% | 0.7187 |
+| Validation-selected probability fusion | 81.82% | 0.7062 |
+| CNN 96-dimensional embedding → XGBoost | 84.35% | 0.7502 |
+| 12 physiological + 96 CNN features → XGBoost | 85.49% | 0.7567 |
+| **12 physiological + 256 CNN pooling features → XGBoost** | **85.63%** | **0.7715** |
+
+- [Results and confusion matrices](output_data_new/README.md)
+- [Dataset label audit](output_data_new/DATA_AUDIT.md)
+- [Implementation and validation report](output_data_new/VALIDATION_REPORT.md)
+- [Setup, workflow, and reproduction guide](output_data_new/REPRODUCE.md)
+- [Complete experiment runner](scripts/evaluation/run_dataset_suite.py) and [spreadsheet audit code](scripts/evaluation/audit_phase_folders.py)
+
+The published folder includes predictions, feature tables, 44 CNN checkpoints, 176 final XGBoost models, fold splits, and inner-validation records. Raw recordings and the large generated signal cache remain local. This is recording-level evaluation on a changed dataset; it is not directly comparable with the historical 30-recording scores or an independent participant-level test.
+
+## Previous: CNN intermediate features + XGBoost
 
 Combining the 12 Plan C features with 256 CNN pooling features achieved **85.59% accuracy / 0.7512 macro F1** in 30-fold LORO with 29 training recordings and one test recording. Three fixed representation variants were evaluated; this is an exploratory comparison on the same dataset.
 
