@@ -81,6 +81,7 @@ output_new_1/raw_windows_250hz.npz
 !output_new_2/predictions.csv
 output_new_2_initial_attempt/
 output_data_new/raw_windows_250hz.npz
+output_data_new_test_selected*/
 !output_data_new/features.csv
 !output_data_new/predictions.csv
 !output_data_new/folds/*/cnn_model.pt

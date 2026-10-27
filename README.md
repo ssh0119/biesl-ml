@@ -1,5 +1,20 @@
 # biesl-ml
 
+## Test-selected experiment results and expanded CNN
+
+- [44-fold result figures and summary](report/test-selected-results/README.md): CNN 93.02% / Macro F1 0.9071; test-tuned fusion 96.09% / 0.9501. These use test-based selection and are not independent test estimates.
+- [Expanded CNN architecture, parameter sizes, and training command](report/expanded-cnn.md).
+
+## Optional diagnostic: test-selected epochs
+
+An isolated experiment can reproduce selecting the best CNN epoch on the same recording used for scoring. The original inner-validation workflow remains unchanged. These scores are explicitly marked as optimistic, not independent test performance.
+
+```powershell
+.\.venv\Scripts\python.exe -u train_test_selected.py
+```
+
+See [the experimental workflow and options](report/test-selected-experiment.md). Results go to `output_data_new_test_selected_fast`; the command runs all folds and generates confusion matrices. Each CNN stops once every test window is correct; optional patience is disabled by default.
+
 ## Latest: data_new — 44-fold evaluation
 
 The new dataset contains **44 recordings / 9,107 windows**. The Phase separation spreadsheet and all four class folders were checked before training. Each outer fold tests one recording and fits the final models on the other **43 recordings**, including the four recordings used for inner validation. All CNNs, epoch selections, and fusion weights were trained again on this dataset.
