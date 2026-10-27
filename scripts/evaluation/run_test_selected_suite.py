@@ -246,6 +246,12 @@ def main(argv=None):
     parser.add_argument("--selection-metric", choices=("accuracy", "macro_f1"), default="accuracy")
     parser.add_argument("--prepare-only", action="store_true", help="Audit and validate inputs without training")
     args = parser.parse_args(argv)
+    embedding_dim = 256 if args.architecture == "expanded" else 96
+    pooled_dim = 512 if args.architecture == "expanded" else 256
+    variants = {f"embedding{embedding_dim}_xgb": (False, embedding_dim),
+                f"features12_embedding{embedding_dim}_xgb": (True, embedding_dim),
+                f"features12_pool{pooled_dim}_xgb": (True, pooled_dim)}
+    methods = ("cnn", "xgboost", "mean", "test_tuned_fusion", *variants)
     if args.max_epochs < 1 or args.patience < 0:
         parser.error("--max-epochs must be positive and --patience nonnegative")
     out = Path(args.output_dir)
@@ -275,7 +281,7 @@ def main(argv=None):
               "manifest": checked["manifest"], "spreadsheet_sha256": checked["spreadsheet_sha256"], "aliases": aliases,
               "torch": torch.__version__, "xgboost": xgboost.__version__, "xgb_params": XGB_PARAMS,
               "code_hashes": {str(p): sha256(p) for p in sources}, "classes": CLASSES, "features": FEATURES,
-              "variants": VARIANTS, "fusion_candidates": CANDIDATES, "reuse_preprocessing": reuse,
+              "variants": variants, "fusion_candidates": CANDIDATES, "reuse_preprocessing": reuse,
               "cache_dir": str(raw_path.parent.resolve())}
     # Reject incompatible resumes before rebuilding caches.
     signature = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
@@ -306,7 +312,7 @@ def main(argv=None):
     if args.prepare_only:
         LOG.info("Preparation verified. No model training performed.")
         return
-    predictions = {name: np.full((len(y), len(CLASSES)), np.nan) for name in METHODS}
+    predictions = {name: np.full((len(y), len(CLASSES)), np.nan) for name in methods}
     folds = []
     for i, rec in enumerate(all_recordings):
         folder = out / "folds" / f"{i:02d}"
@@ -324,7 +330,7 @@ def main(argv=None):
             with np.load(folder / "probabilities.npz") as saved:
                 if not np.array_equal(saved["test_indices"], ti):
                     raise ValueError("Completed fold test indices mismatch")
-                for name in METHODS:
+                for name in methods:
                     predictions[name][ti] = saved[name]
             folds.append(metadata)
             LOG.info("  reused completed fold")
@@ -359,8 +365,8 @@ def main(argv=None):
         geometric, weight = CANDIDATES[int(np.argmax(scores))]
         outputs = {"cnn": ct, "xgboost": xt, "mean": (ct + xt) / 2,
                    "test_tuned_fusion": fuse(ct, xt, weight, geometric)}
-        for name, (include_features, dimension) in VARIANTS.items():
-            tr, te = (tr96, te96) if dimension == 96 else (tr256, te256)
+        for name, (include_features, dimension) in variants.items():
+            tr, te = (tr96, te96) if dimension == embedding_dim else (tr256, te256)
             names = [f"cnn_{dimension}_{j:03d}" for j in range(dimension)]
             if include_features:
                 tr, te = np.column_stack((X[train], tr)), np.column_stack((X[ti], te))
@@ -377,7 +383,7 @@ def main(argv=None):
                     "cnn_weight": weight, "geometric": geometric, "fusion_candidate_scores": scores}
         np.savez(folder / "probabilities.npz", test_indices=ti, **outputs)
         write_json(done, metadata)
-        for name in METHODS:
+        for name in methods:
             predictions[name][ti] = outputs[name]
         folds.append(metadata)
         LOG.info("  saved best epoch=%d, test score=%.4f", selection["best_epoch"], selection["best_test_score"])

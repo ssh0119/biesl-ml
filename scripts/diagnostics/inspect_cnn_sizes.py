@@ -22,7 +22,8 @@ def main():
             z = model.features(x)
             pooled = torch.cat((model.avg_pool(z), model.max_pool(z)), dim=1).squeeze(-1)
             hidden = model.classifier[:3](pooled)
-            assert pooled.shape == (2, 256) and hidden.shape == (2, 96)
+            expected_pool, expected_hidden = (512, 256) if name == "expanded" else (256, 96)
+            assert pooled.shape == (2, expected_pool) and hidden.shape == (2, expected_hidden)
             torch.testing.assert_close(model.classifier[3:](hidden), model(x))
             buffer = io.BytesIO()
             torch.save(model.state_dict(), buffer)
@@ -34,7 +35,7 @@ def main():
         results[name] = {"parameters": count_parameters(model),
                          "parameter_mib_fp32": sum(p.numel()*p.element_size() for p in model.parameters()) / 2**20,
                          "checkpoint_bytes": checkpoint_bytes,
-                         "pooled_features": 256, "embedding_features": 96}
+                         "pooled_features": expected_pool, "embedding_features": expected_hidden}
     print(json.dumps(results, indent=2))
 
 

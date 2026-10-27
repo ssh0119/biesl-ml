@@ -2,25 +2,25 @@
 
 ## 변경 내용
 
-선배님 모델의 구체적인 구조는 아직 확인되지 않았으므로, 기존 모델과 통제된 비교를 위한 채널 확장 모델을 추가했습니다. 원본 `src/cnn/model.py`는 유지하고 `src/cnn/expanded_model.py`에 새 모델을 정의했습니다.
+사용자가 알려준 합성곱 `64 → 128 → 256 → 256`, 은닉층 `256`으로 확장 모델을 구성했습니다. 나머지 세부 설정은 기존 모델을 유지하므로 선배님 모델의 완전한 재현은 아닙니다. 원본 `src/cnn/model.py`는 유지하고 `src/cnn/expanded_model.py`에 새 모델을 정의했습니다.
 
 | 항목 | 기존 baseline | 확장 expanded |
 |---|---:|---:|
-| 합성곱 블록 채널 | 32 → 64 → 128 → 128 | 64 → 128 → 256 → 128 |
-| 학습 파라미터 | 135,845 | 365,061 |
-| FP32 파라미터 크기 | 0.518 MiB | 1.393 MiB |
-| state_dict 직렬화 크기 | 555,855 bytes | 1,474,511 bytes |
-| pooling 특징 | 256 | 256 |
-| 은닉층 특징 | 96 | 96 |
+| 합성곱 블록 채널 | 32 → 64 → 128 → 128 | 64 → 128 → 256 → 256 |
+| 학습 파라미터 | 135,845 | 571,077 |
+| FP32 파라미터 크기 | 0.518 MiB | 2.178 MiB |
+| state_dict 직렬화 크기 | 555,855 bytes | 2,299,599 bytes |
+| pooling 특징 | 256 | 512 |
+| 은닉층 특징 | 96 | 256 |
 
-파라미터는 약 2.69배입니다. 앞쪽 세 블록의 채널을 두 배로 늘리고 마지막 블록은 128채널로 유지합니다. 커널, stride, pooling, dropout, 분류 헤드는 그대로입니다. 특징 차원을 유지해 기존 7가지 평가 방식 모두 같은 입력 차원으로 비교할 수 있습니다. 표의 크기는 학습 중 GPU 메모리 사용량이 아닙니다. 활성값·gradient·optimizer 상태 때문에 실제 학습 메모리는 더 큽니다.
+파라미터는 약 4.20배입니다. 모든 합성곱 채널을 두 배로 늘리고 은닉층을 256으로 확대했습니다. 평균·최대 pooling을 연결해 512차원이 되며 분류 헤드는 512 → 256 → 5입니다. XGBoost 입력도 임베딩 256개, 기존 특징 12개+임베딩 256개, 기존 특징 12개+pooling 512개로 자동 변경됩니다. 커널, stride, pooling 방식과 dropout은 유지합니다. 표의 크기는 학습 중 GPU 메모리 사용량이 아닙니다. 활성값·gradient·optimizer 상태 때문에 실제 학습 메모리는 더 큽니다.
 
 ## 실행
 
 저장소 루트의 PowerShell에서:
 
 ```powershell
-.\.venv\Scripts\python.exe -u train_test_selected.py --architecture expanded --max-epochs 50 --output-dir output_data_new_test_selected_expanded_50ep
+.\.venv\Scripts\python.exe -u train_test_selected.py --architecture expanded --max-epochs 50 --output-dir output_data_new_test_selected_expanded256_50ep
 ```
 
 43 train / 1 test, 44-fold를 수행합니다. 정확도 100% 도달 시 해당 fold의 CNN 학습을 종료하고 나머지 결합 학습을 수행합니다. CNN 단독, XGBoost 단독, 확률 결합 2개, 중간 특징 결합 3개와 confusion matrix를 생성합니다. 테스트로 epoch와 일부 결합 비중을 선택하는 기존 실험 조건을 그대로 사용하므로 독립 테스트 성능은 아닙니다.
@@ -36,4 +36,4 @@
 .\.venv\Scripts\python.exe -m unittest scripts.diagnostics.test_test_selected_suite -v
 ```
 
-크기 점검은 실제 `(2, 3, 10000)` 입력으로 순전파·역전파, 유한한 gradient, 96/256 특징 차원, 분리한 헤드와 전체 모델 출력 일치, checkpoint 저장·복원 후 출력 일치를 확인합니다.
+크기 점검은 실제 `(2, 3, 10000)` 입력으로 순전파·역전파, 유한한 gradient, 기존 96/256 및 확장 256/512 특징 차원, 분리한 헤드와 전체 모델 출력 일치, checkpoint 저장·복원 후 출력 일치를 확인합니다.
